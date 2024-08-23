@@ -338,7 +338,7 @@ calc_ssgsea <- function(exp.df, gset, gsva.met = "ssgsea", ssgsea.norm = T, col1
 generate_deg_heatmap <- function(heatmap_data, scale = "row", heatmap_color = viridis::viridis(200), col_annotation, col_color, col_split, col_split_order = NULL, show_heatmap_legend = TRUE,
                                  cluster_column_slices = F, row_annotation, row_split = NULL, row_split_labels = NULL, row_names_fontsize = 4.5, colnames_fontsize = 4.5, left_annotation = NULL, right_annotation = NULL,
                                  show_annotation_name = TRUE, display_gene_index = NULL, display_gene_label, cluster_row_slices = T, row_title = " ", column_title = " ", show_row_names = TRUE, 
-                                 heatmap_legend = "Normalized Expression", top_anno_fontsize = 10, left_anno_fontsize = 5.5, legend_title_fontsize = 10, legend_label_fontsize = 10){
+                                 heatmap_legend = "Standardized Expression", top_anno_fontsize = 10, left_anno_fontsize = 5.5, legend_title_fontsize = 10, legend_label_fontsize = 10){
   
   set.seed(666)
   

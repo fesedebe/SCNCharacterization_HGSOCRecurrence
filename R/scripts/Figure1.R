@@ -2,6 +2,7 @@
 #load libraries-----
 library(dplyr)
 library(Rubrary)
+library(data.table)
 library(tibble)
 library(ComplexHeatmap)
 library(ggpubr)
@@ -13,6 +14,17 @@ source("./Figures/R/functions/Fig1_functions.R")
 #load data------
 ucla_ov_paired = read.delim(
   file = "ovarian_ucla12345_rsem_genes_upper_norm_counts_coding_log2_paired.txt",
+  stringsAsFactors = F
+)
+uc5p.rbl <- fread("data/ucla5_patch_rbe2f_ssgsea.txt")
+ov_anno_rc = read.delim("data/UCLAOvarian_CombinedBatches_Annotation_v13_rcp.txt", stringsAsFactors = F)
+patch_anno_full <- read.delim(
+  file = "data/patch.signature.scores_anno_full.txt",
+  stringsAsFactors = F
+)
+patch.r = read.delim(
+  file = "data/Patch_ovarian_rsem_genes_upper_norm_counts_coding_log2.txt",
+  row.names = 1,
   stringsAsFactors = F
 )
 #
@@ -160,28 +172,28 @@ cat_terms = c("INFLAM|IMMUN|INTERLUEKIN|LEUKOCYTE|TNF|MHC|CYTOKINE_|CHEMOKINE|AN
 )
 
 gseasq.UCLAAllPatch_deseq_recur_full_supp = Rubrary::run_GSEA_squared(
-  df_GSEA = "~/Library/CloudStorage/Box-Box/OVProject/NE_Features_in_HGSOC_Manuscript/Manuscript/Data/DEGenes&Pathways_FullFiles/PatientSamples_BulkRNASeq/txt_files/UCLA_Patch_Recurrent/fGSEA_UCLAAllPatch_deseq_recur.txt",
+  df_GSEA = "data/fGSEA_UCLAAllPatch_deseq_recur.txt",
   categories = categories,
   cat_terms = cat_terms,
   title = "Chemonaive v. Recurrent",
-  savename = "~/Dropbox/Graeber/OVP/OV_NE/Figures/Output/Fig1/fGSEA_UCLAAllPatch_deseq_recur_full_supp",
+  savename = "/Output/fGSEA_UCLAAllPatch_deseq_recur_full_supp",
   height = 7, width = 7
 )
 
 #UCLA + Starr 
 gseasq.UCLAAllPatch_deseq_postnact_full_supp = Rubrary::run_GSEA_squared(
-  df_GSEA = "~/Dropbox/Graeber/OVP/Ovarian Project/signatures/DESeq_PostNACT_UCLAStarr/UCLAStarr/GSEA/UCLAStarr_GSEA_DESeq_PostNACT_slogp_PC.txt",
+  df_GSEA = "data/UCLAStarr_GSEA_DESeq_PostNACT_slogp_PC.txt",
   categories = categories,
   cat_terms = cat_terms,
   title = "Chemonaive v. Post-NACT",
-  savename = "~/Dropbox/Graeber/OVP/OV_NE/Figures/Output/Fig1/fGSEA_UCLAAllPatch_deseq_postnact_full_supp",
+  savename = "Output/fGSEA_UCLAAllPatch_deseq_postnact_full_supp",
   height = 7, width = 7
 )
 
 ##Density Plot (1B)
 #UCLA & Patch
 gseasq.UCLAAllPatch_deseq_recur_full = Rubrary::run_GSEA_squared(
-  df_GSEA = "~/Library/CloudStorage/Box-Box/OVProject/NE_Features_in_HGSOC_Manuscript/Manuscript/Data/DEGenes&Pathways_FullFiles/PatientSamples_BulkRNASeq/txt_files/UCLA_Patch_Recurrent/fGSEA_UCLAAllPatch_deseq_recur.txt",
+  df_GSEA = "data/fGSEA_UCLAAllPatch_deseq_recur.txt",
   categories = categories[c(1:3,8:11)],
   cat_terms = cat_terms[c(1:3,8:11)],
   savename = "./data/fGSEA_UCLAAllPatch_deseq_recur_full",
@@ -197,7 +209,7 @@ write.table(
 
 #UCLA & Starr
 gseasq.UCLAStarr_deseq_postnact_full = Rubrary::run_GSEA_squared(
-  df_GSEA = "~/Dropbox/Graeber/OVP/Ovarian Project/signatures/DESeq_PostNACT_UCLAStarr/UCLAStarr/GSEA/UCLAStarr_GSEA_DESeq_PostNACT_slogp_PC.txt",
+  df_GSEA = "data/UCLAStarr_GSEA_DESeq_PostNACT_slogp_PC.txt",
   categories = categories[c(1:3,8:11)],
   cat_terms = cat_terms[c(1:3,8:11)],
   savename = "./data/fGSEA_UCLAStarr_GSEA_DESeq_PostNACT_full",
@@ -217,5 +229,230 @@ Rubrary::plot_GSEAsq_density(
   plot_fmt = "pdf",
   height = 5, width = 5
 )
+
+#
+#DEG Heatmap - Recurrent (Fig 1C)----
+# Generate Heatmap of top DEGs & their broader GSEA Category - UCLA & Patch (Fig 1C)
+
+# Define file paths
+deg_file <- "data/UCLAAllPatch_topgenes_de.le_dupgenefiltered_upd.txt"
+ucla_expr_file <- "data/ovarian_ucla1234_rsem_genes_upper_norm_counts_coding_log2_paired_recurrent.txt"
+display_genes_file <- "data/UCLAAllPatch_topgenes_de.le_dupgenefiltered_display.txt"
+
+
+# UCLA: Merge DE genes with expression data, order, and prepare annotations
+heatmap_data_rc_full <- fread(deg_file) %>%
+  inner_join(fread(ucla_expr_file), by = "gene") %>%
+  arrange(category)
+
+row_annotation <- heatmap_data_rc_full %>%
+  select(gene, category) %>%
+  column_to_rownames(var = "gene")
+
+heatmap_data_rc <- heatmap_data_rc_full %>%
+  column_to_rownames(var = "gene") %>%
+  select(-category, -co_rank_category, -deseq_padj, -gsea_leadingedge_frequency)
+colnames(heatmap_data_rc) <- ov_anno_rc$Sample[match(colnames(heatmap_data_rc), ov_anno_rc$Sample_ID)]
+
+col_annotation_rc <- colnames(heatmap_data_rc) %>%
+  data.frame(Sample = ., stringsAsFactors = FALSE) %>%
+  left_join(ov_anno_rc, by = "Sample") %>%
+  left_join(uc5p.rbl, by = "Sample_ID") %>%
+  column_to_rownames(var = "Sample") %>%
+  select(Treatment_Status, Sample_Type, RB_E2F_WP)
+
+col_color_rc <- list(
+  Treatment_Status = c(Chemonaive = "#f9ceab", Recurrent = "#ae7d78"),
+  `Sample Type` = c(Fluid = "#F0FFF0", Tumor = "#1b7837", `Lymph node` = "darkseagreen1"),
+  `RB1-E2F Dysregulation` = circlize::colorRamp2(c(min(col_annotation_rc$RB_E2F_WP), max(col_annotation_rc$RB_E2F_WP)), 
+                                                 c("white", "olivedrab"))
+)
+
+# Patch: Prepare data matrix and annotations
+patch_col_anno <- patch_anno_full %>%
+  rename(Sample_ID = Short_name) %>%
+  left_join(uc5p.rbl, by = "Sample_ID") %>%
+  column_to_rownames(var = "Sample") %>%
+  select(Treatment_Status, Sample_Type, RB_E2F_WP)
+
+heatmap_data.p <- patch.r %>%
+  select(match(patch_anno_full$Short_name, colnames(.))) %>%
+  setNames(patch_anno_full$Sample[match(colnames(.), patch_anno_full$Short_name)]) %>%
+  filter(row.names(.) %in% rownames(row_annotation)) %>%
+  slice(match(rownames(row_annotation), row.names(.)))
+
+col_color_p <- list(
+  Treatment_Status = c(Chemonaive = "#f9ceab", Recurrent = "#ae7d78"),
+  `Sample Type` = c(Fluid = "#F0FFF0", Tumor = "#1b7837"),
+  `RB1-E2F Dysregulation` = circlize::colorRamp2(c(min(patch_col_anno$RB_E2F_WP), max(patch_col_anno$RB_E2F_WP)), 
+                                                 c("white", "olivedrab"))
+)
+
+# Define order of row and column splits
+row_split_order <- rev(c("Immune Response", "Cell Differentiation", "Lipid Metabolism", "Neuronal Function", 
+                         "Epigenetic Regulation", "Cell Cycle Regulation", "DNA Repair"))
+col_split_order <- c("Chemonaive", "Recurrent")
+
+# Read and filter genes for display on heatmap
+f1hm_dispgs <- fread(display_genes_file) %>%
+  mutate(mat_index = match(gene, rownames(heatmap_data.p))) %>%
+  select(mat_index, gene) %>%
+  na.omit()
+
+# Create custom legend for row annotations
+legend_annoblock_cat <- Legend(
+  title = "Category",
+  labels = row_split_order,
+  legend_gp = gpar(fill = 2:8),
+  title_gp = gpar(fontsize = 7.5, fontface = "bold"),
+  nrow = 4, labels_gp = gpar(fontsize = 7.5)
+)
+
+# Generate UCLA and Patch heatmaps
+cht.urc <- generate_deg_heatmap(
+  heatmap_data = heatmap_data_rc,
+  col_annotation = col_annotation_rc[, -which(names(col_annotation_rc) == "Treatment_Status")],
+  col_color = col_color_rc,
+  col_split = factor(col_annotation_rc$Treatment_Status, levels = col_split_order),
+  col_split_order = col_split_order,
+  column_title = "UCLA",
+  colnames_fontsize = 5,
+  row_annotation = row_annotation,
+  row_split = factor(row_annotation$category, levels = row_split_order),
+  row_split_labels = c("Repair", "Cycle", "Epigenetic", "Neuro", "Lipid", "Diff.", "Immune"),
+  cluster_row_slices = FALSE,
+  legend_title_fontsize = 7.5,
+  legend_label_fontsize = 7.5,
+  show_annotation_name = FALSE
+)
+
+cht.p <- generate_deg_heatmap(
+  heatmap_data = heatmap_data.p,
+  row_annotation = row_annotation,
+  col_annotation = patch_col_anno[, -which(names(patch_col_anno) == "Treatment_Status")],
+  col_color = col_color_p,
+  col_split = factor(patch_col_anno$Treatment_Status, levels = col_split_order),
+  col_split_order = col_split_order,
+  column_title = "Patch et al.",
+  colnames_fontsize = 5,
+  show_row_names = FALSE,
+  legend_title_fontsize = 7.5,
+  legend_label_fontsize = 7.5,
+  show_annotation_name = FALSE,
+  display_gene_index = f1hm_dispgs$mat_index,
+  display_gene_label = f1hm_dispgs$gene
+)
+
+# Save the combined heatmaps
+pdf(
+  "Output/ucp_deg_hm.pdf",
+  height = 6.5,
+  width = 8
+)
+draw(
+  cht.urc + cht.p, 
+  ht_gap = unit(0.2, "cm"), 
+  annotation_legend_list = list(Category = legend_annoblock_cat), 
+  merge_legend = TRUE,
+  heatmap_legend_side = "bottom",
+  annotation_legend_side = "bottom"
+)
+dev.off()
+#
+#DEG Heatmap - PostNACT (Figure S1D)----
+deg.le.ucs = fread("data/UCLAStarr_topgenes_de.le_dupgenefiltered.txt")
+ucla.ov.paired.pn <- fread("data/ovarian_ucla12345_rsem_genes_upper_norm_counts_coding_log2_post_nact.txt")
+
+heatmap_data_full.ucs <- merge(deg.le.ucs[, c("gene","category")], ucla.ov.paired.pn, by = "gene")
+
+# Order genes by category for the heatmap, Remove rownames & set the col "gene" as rowname, Extract gene expression values
+heatmap_data_full.ucs <- heatmap_data_full.ucs[order(heatmap_data_full.ucs$category),]
+heatmap_data.ucs <- heatmap_data_full.ucs %>%
+  `row.names<-`(., NULL) %>% 
+  column_to_rownames(var = "gene") %>%
+  select(-category)
+
+row_annotation.ucs <- heatmap_data_full.ucs[, c(1,2)] %>%
+  `row.names<-`(., NULL) %>% 
+  column_to_rownames(var = "gene")
+
+#Match anno names with those on heatmap matrix
+colnames(heatmap_data.ucs) <- ov_anno_pn$Sample[match(colnames(heatmap_data.ucs), ov_anno_pn$Sample_ID)]
+
+#UCLA Chemonaive
+heatmap_data.pn <- heatmap_data.ucs %>% 
+  select(all_of(
+    ov_anno_pn %>%
+      filter(Treatment_Status %in% c("Chemonaive", "Post-NACT") & Paired == T) %>%
+      pull(Sample))) 
+
+col_annotation_pn <- colnames(heatmap_data.pn) %>% 
+  data.frame(Sample = ., stringsAsFactors = F) %>%
+  left_join(ov_anno_pn, by = "Sample") %>%
+  column_to_rownames(var = "Sample") %>%
+  select(Treatment_Status, Sample_Type, RB_Loss_Malorni)
+
+col_color.pn = list(
+  Treatment_Status = c(Chemonaive = "#f9ceab", Post_NACT = "#f9b3ab"),
+  Sample_Type = c(Fluid = "#F0FFF0", Tumor = "#1b7837",`Lymph node` ="darkseagreen1"),
+  RB_Loss_Malorni =  circlize::colorRamp2(
+    c(min(col_annotation_pn$RB_Loss_Malorni, na.rm = T), max(col_annotation_pn$RB_Loss_Malorni, na.rm = T)),
+    c("white", "olivedrab")))
+
+row_split_order.ucs = rev(c("Immune Response", "Cell Differentiation", "Lipid Metabolism", "Epigenetic Regulation", "Cell Cycle Regulation", "DNA Repair"))
+col_split_order.ucs = c("Chemonaive", "Post-NACT")
+cht.upn = generate_deg_heatmap(
+  heatmap_data = heatmap_data.pn,
+  col_annotation = col_annotation_pn[, -which(names(col_annotation_pn) == "Treatment_Status")],
+  col_color = col_color.pn,
+  col_split = factor(col_annotation_pn$Treatment_Status, levels = col_split_order.ucs),
+  col_split_order = col_split_order.ucs,
+  column_title = "UCLA",
+  row_annotation = row_annotation,
+  row_split = factor(row_annotation.ucs$category, levels = row_split_order.ucs),
+  row_split_labels = c("Repair", "Cycle", "Epigenetic", "Lipid", "Diff.", "Immune"),
+  cluster_row_slices = F,
+  show_annotation_name = F
+)
+cht.upn
+
+#Starr
+starr_col_anno <- starr_anno_full %>%
+  select(Treatment_Status, Sample_Type, RB1_Loss)
+
+heatmap_data.s <- starr.r %>%
+  select(match(starr_anno_full$Sample_ID, colnames(.))) %>%
+  `colnames<-`(starr_anno_full$Sample[match(colnames(.), starr_anno_full$Sample_ID)]) %>%
+  filter(row.names(.) %in% rownames(row_annotation.ucs)) %>%
+  slice(match(rownames(row_annotation.ucs), rownames(.)))
+
+col_color.s = list(
+  Treatment_Status = c(Chemonaive = "#f9ceab", Post_NACT = "#f9b3ab"),
+  Sample_Type = c(Fluid = "#F0FFF0", Tumor = "#1b7837"),
+  RB1_Loss = circlize::colorRamp2(
+    c(min(starr_col_anno$RB1_Loss), max(starr_col_anno$RB1_Loss)), 
+    c("white", "olivedrab"))
+)
+cht.s = generate_deg_heatmap(
+  heatmap_data = heatmap_data.s,
+  row_annotation = row_annotation.ucs,
+  row_names_fontsize = 3.5,
+  col_annotation = starr_col_anno[, -which(names(starr_col_anno) == "Treatment_Status")],
+  col_color = col_color.s,
+  col_split = factor(starr_col_anno$Treatment_Status, levels = col_split_order.ucs),
+  col_split_order = col_split_order.ucs,
+  column_title = "Starr"
+)
+cht.s
+
+cht.upn + cht.s
+pdf(
+  "~/Dropbox/Graeber/OVP/OV_NE/Figures/Output/Fig1/ucs_deg_hm.pdf", 
+  height = 6.5,
+  width = 9
+)
+draw(cht.upn + cht.s, ht_gap = unit(0.2, "cm"))
+dev.off()
+
 
 #
