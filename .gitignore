@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Ignore all CSV files
+*.csv
+
+# Ignore specific file types related to large data
+*.fastq
+*.bam
+*.h5
+
+# Ignore the entire 'data' directory
+data/
