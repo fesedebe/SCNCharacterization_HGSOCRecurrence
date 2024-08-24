@@ -27,6 +27,15 @@ patch.r = read.delim(
   row.names = 1,
   stringsAsFactors = F
 )
+starr_anno_full <- read.delim(
+  file = "data/StarrOvarian_Annotation_full.txt",
+  stringsAsFactors = F
+)
+starr.r = read.delim(
+  file = "~/Dropbox/Graeber/OVP/Ovarian Project/log2_coding_expression_datasets/starr_ovarian_gene_expression_coding_log2.txt",
+  row.names = 1,
+  stringsAsFactors = F
+)
 #
 #GSEA Fig 1D & S1E-----
 
@@ -389,14 +398,15 @@ heatmap_data.pn <- heatmap_data.ucs %>%
 col_annotation_pn <- colnames(heatmap_data.pn) %>% 
   data.frame(Sample = ., stringsAsFactors = F) %>%
   left_join(ov_anno_pn, by = "Sample") %>%
+  left_join(uc5p.rbl, by = "Sample_ID") %>%
   column_to_rownames(var = "Sample") %>%
-  select(Treatment_Status, Sample_Type, RB_Loss_Malorni)
+  select(Treatment_Status, Sample_Type, RB_E2F_WP)
 
 col_color.pn = list(
   Treatment_Status = c(Chemonaive = "#f9ceab", Post_NACT = "#f9b3ab"),
-  Sample_Type = c(Fluid = "#F0FFF0", Tumor = "#1b7837",`Lymph node` ="darkseagreen1"),
-  RB_Loss_Malorni =  circlize::colorRamp2(
-    c(min(col_annotation_pn$RB_Loss_Malorni, na.rm = T), max(col_annotation_pn$RB_Loss_Malorni, na.rm = T)),
+  `Sample Type`  = c(Fluid = "#F0FFF0", Tumor = "#1b7837",`Lymph node` ="darkseagreen1"),
+  `RB1-E2F Dysregulation` =  circlize::colorRamp2(
+    c(min(col_annotation_pn$RB_E2F_WP, na.rm = T), max(col_annotation_pn$RB_E2F_WP, na.rm = T)),
     c("white", "olivedrab")))
 
 row_split_order.ucs = rev(c("Immune Response", "Cell Differentiation", "Lipid Metabolism", "Epigenetic Regulation", "Cell Cycle Regulation", "DNA Repair"))
@@ -418,7 +428,9 @@ cht.upn
 
 #Starr
 starr_col_anno <- starr_anno_full %>%
-  select(Treatment_Status, Sample_Type, RB1_Loss)
+  left_join(s.rbl, by = "Sample_ID") %>%
+  column_to_rownames(var = "Sample") %>%
+  select(Treatment_Status, Sample_Type, RB_E2F_WP)
 
 heatmap_data.s <- starr.r %>%
   select(match(starr_anno_full$Sample_ID, colnames(.))) %>%
@@ -428,11 +440,19 @@ heatmap_data.s <- starr.r %>%
 
 col_color.s = list(
   Treatment_Status = c(Chemonaive = "#f9ceab", Post_NACT = "#f9b3ab"),
-  Sample_Type = c(Fluid = "#F0FFF0", Tumor = "#1b7837"),
-  RB1_Loss = circlize::colorRamp2(
-    c(min(starr_col_anno$RB1_Loss), max(starr_col_anno$RB1_Loss)), 
+  `Sample Type` = c(Fluid = "#F0FFF0", Tumor = "#1b7837"),
+  `RB1-E2F Dysregulation` = circlize::colorRamp2(
+    c(min(starr_col_anno$RB_E2F_WP), max(starr_col_anno$RB_E2F_WP)), 
     c("white", "olivedrab"))
 )
+
+set.seed(40)
+f1hm_ups_dispgs <- heatmap_data.s %>%
+  mutate(row_number = row_number(),
+         gene = rownames(.)) %>%
+  sample_n(40) %>%
+  select(row_number, gene)
+
 cht.s = generate_deg_heatmap(
   heatmap_data = heatmap_data.s,
   row_annotation = row_annotation.ucs,
@@ -441,18 +461,27 @@ cht.s = generate_deg_heatmap(
   col_color = col_color.s,
   col_split = factor(starr_col_anno$Treatment_Status, levels = col_split_order.ucs),
   col_split_order = col_split_order.ucs,
-  column_title = "Starr"
+  column_title = "Starr et al.",
+  show_annotation_name = FALSE,
+  show_row_names = F,
+  display_gene_index = f1hm_ups_dispgs$row_number,
+  display_gene_label = f1hm_ups_dispgs$gene
 )
 cht.s
 
 cht.upn + cht.s
 pdf(
-  "~/Dropbox/Graeber/OVP/OV_NE/Figures/Output/Fig1/ucs_deg_hm.pdf", 
+  "Output/ucs_deg_hm.pdf", 
   height = 6.5,
   width = 9
 )
-draw(cht.upn + cht.s, ht_gap = unit(0.2, "cm"))
+draw(
+  cht.upn + cht.s, 
+  ht_gap = unit(0.2, "cm"), 
+  annotation_legend_list = list(Category = legend_annoblock_cat), 
+  merge_legend = TRUE,
+  heatmap_legend_side = "bottom",
+  annotation_legend_side = "bottom"
+)
 dev.off()
-
-
 #
