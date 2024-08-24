@@ -131,10 +131,11 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
   
   #save/output fgsea file
   if(save){
-    filename = ifelse(is.null(cluster_id),
-                      paste0(savename, "_fgsea.txt"),
-                      paste0(savename, "_", cluster_id, "_fgsea.txt")
-                      )
+    filename = ifelse(
+      is.null(cluster_id),
+      paste0(savename, "_fgsea.txt"),
+      paste0(savename, "_", cluster_id, "_fgsea.txt")
+    )
     write.table(
       x = fgseaRes,
       file = filename,
@@ -145,7 +146,8 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
   }
   print(g)
   #return(g)
-  return(fgseaRes)
+  #return(fgseaRes)
+  return(list(df = fgseaRes, plot = g))
 }
 
 
