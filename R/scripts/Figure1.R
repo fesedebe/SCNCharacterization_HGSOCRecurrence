@@ -8,8 +8,7 @@ library(ComplexHeatmap)
 library(ggpubr)
 library(xlsx)
 
-setwd("/Users/Zero/Dropbox/Graeber/OVP/OV_NE")
-source("./Figures/R/functions/Fig1_functions.R")
+source("R/functions/Fig1_functions.R")
 #
 #load data------
 ucla_ov_paired = read.delim(
@@ -25,10 +24,6 @@ patch_anno_full <- read.delim(
 patch.r = read.delim(
   file = "data/Patch_ovarian_rsem_genes_upper_norm_counts_coding_log2.txt",
   row.names = 1,
-  stringsAsFactors = F
-)
-starr_anno_full <- read.delim(
-  file = "data/StarrOvarian_Annotation_full.txt",
   stringsAsFactors = F
 )
 starr.r = read.delim(
@@ -369,9 +364,14 @@ draw(
 dev.off()
 #
 #DEG Heatmap - PostNACT (Figure S1D)----
-deg.le.ucs = fread("data/UCLAStarr_topgenes_de.le_dupgenefiltered.txt")
-ucla.ov.paired.pn <- fread("data/ovarian_ucla12345_rsem_genes_upper_norm_counts_coding_log2_post_nact.txt")
+#load files
+deg.le.ucs = data.table::fread("data/UCLAStarr_topgenes_de.le_dupgenefiltered.txt")
+ucla.ov.paired.pn <- data.table::fread("data/ovarian_ucla12345_rsem_genes_upper_norm_counts_coding_log2_post_nact.txt")
+ov_anno_pn <- read.delim("data/UCLAOvarian_CombinedBatches_Annotation_v13_pnp.txt", stringsAsFactors = F)
+starr_anno_full <- read.delim("data/StarrOvarian_Annotation_full.txt", stringsAsFactors = F)
+s.rbl <- data.table::fread("data/starr_rbe2f_ssgsea.txt")
 
+#edit heatmap data
 heatmap_data_full.ucs <- merge(deg.le.ucs[, c("gene","category")], ucla.ov.paired.pn, by = "gene")
 
 # Order genes by category for the heatmap, Remove rownames & set the col "gene" as rowname, Extract gene expression values
@@ -426,7 +426,7 @@ cht.upn = generate_deg_heatmap(
 )
 cht.upn
 
-#Starr
+##Starr
 starr_col_anno <- starr_anno_full %>%
   left_join(s.rbl, by = "Sample_ID") %>%
   column_to_rownames(var = "Sample") %>%
@@ -461,7 +461,7 @@ cht.s = generate_deg_heatmap(
   col_color = col_color.s,
   col_split = factor(starr_col_anno$Treatment_Status, levels = col_split_order.ucs),
   col_split_order = col_split_order.ucs,
-  column_title = "Starr et al.",
+  column_title = "Glasgow et al.",
   show_annotation_name = FALSE,
   show_row_names = F,
   display_gene_index = f1hm_ups_dispgs$row_number,
