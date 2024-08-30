@@ -17,7 +17,8 @@
 #' @export
 #'
 #' @examples
-run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slpval, deg.df_gene = "gene", type = "get", maxSize = 500, nPermSimple = 1000, topn = 25, 
+run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slpval, deg.df_gene = "gene", type = "get", 
+                     minSize = 15, maxSize = 500, nPermSimple = 1000, topn = 25, 
                      bottomn = 25, title = "GSEA", pw_size = 5, save = T, savename){
   
   require(msigdbr)
@@ -60,7 +61,7 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
     pathways = pathways,
     stats    = stats,
     eps      = 0.0,
-    minSize  = 15,
+    minSize  = minSize,
     maxSize  = maxSize,
     nPermSimple = nPermSimple
   ) %>%
@@ -70,7 +71,7 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
   
   #plot genesets
   fgseaRes.top = fgseaRes[c(tail(order(NES), n = topn), head(order(NES), n = bottomn)), ]
-  ggpubr::ggbarplot(
+  g1 = ggpubr::ggbarplot(
     fgseaRes.top,
     x = "pathway", 
     y = "NES",
@@ -89,6 +90,7 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
     rotate = TRUE
     #ggtheme = theme_minimal()
   )
+  print(g1)
   
   # Plot
   col_gradient <- scale_fill_gradient2(
@@ -147,11 +149,8 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
   print(g)
   #return(g)
   #return(fgseaRes)
-  return(list(df = fgseaRes, plot = g))
+  return(list(df = fgseaRes, plot = g, plot2 = g1))
 }
-
-
-
 
 #
 #Retrieve Top DEGs from GSEA categories----
