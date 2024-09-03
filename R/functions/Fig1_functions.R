@@ -18,20 +18,19 @@
 #'
 #' @examples
 run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slpval, deg.df_gene = "gene", type = "get", 
-                     minSize = 15, maxSize = 500, nPermSimple = 1000, topn = 25, 
+                     minSize = 15, maxSize = 500, nPermSimple = 1000, topn = 25, sort.val = NULL,
                      bottomn = 25, title = "GSEA", pw_size = 5, save = T, savename){
   
   require(msigdbr)
   require(fgsea)
   
-  #get msigdb pathways
   if(is.null(pathways)){
     pathways = get.MSigDB.genesets(
       msig_df = rbind(
         msigdbr(species = "Homo sapiens", category = "C2"),
         msigdbr(species = "Homo sapiens", category = "C5"),
         msigdbr(species = "Homo sapiens", category = "H")
-      ), #restart R session if error
+      ),
       genesets = c("CP", "GO", "H$")
     )
   }
@@ -43,14 +42,14 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
       filter(cluster == cluster_id)
   }
   
-  #creates a named vector of DE metrics/rank
+  #create a named vector of DE metrics/rank
   if(type == "get")
   stats = setNames(
     deg.df[,get(deg.df_slpval)],
     deg.df[,get(deg.df_gene)]
   ) else{
   stats = setNames(
-    deg.df[,paste0(deg.df_slpval)], #paste0
+    deg.df[,paste0(deg.df_slpval)], 
     deg.df[,paste0(deg.df_gene)]
   )
   }
@@ -71,28 +70,33 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
   
   #plot genesets
   fgseaRes.top = fgseaRes[c(tail(order(NES), n = topn), head(order(NES), n = bottomn)), ]
+  fgseaRes.top$logp = abs(fgseaRes.top$signed_logp)
   g1 = ggpubr::ggbarplot(
     fgseaRes.top,
     x = "pathway", 
     y = "NES",
-    # fill = "NES",          
-    # color = "NES",          
-    fill = "signed_logp",          
-    color = "signed_logp",          
-    #palette = "jco",  
-    #sort.val = sort.val,          
-    sort.by.groups = FALSE,     
-    x.text.angle = 90,   
-    title = "GSEA",
-    ylab = "NES",
-    #legend.title = legend.title,
-    #xlab = paste0(keyword),
+    fill = "logp", 
+    color = NA,
+    sort.by.groups = FALSE,    
+    sort.val = sort.val,
+    title = "GSEA: Enrichment of MHC-Related Pathways in Patch Recurrent Samples",
+    ylab = "Normalized Enrichment Score (NES)",
+    xlab = "Pathway",
     rotate = TRUE
-    #ggtheme = theme_minimal()
-  )
+  ) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"), 
+      axis.text.y = element_text(size = 12, angle = 0),                            
+      axis.title.x = element_text(size = 14, face = "bold"),            
+      axis.title.y = element_text(size = 14, face = "bold"),            
+      legend.title = element_text(size = 14, face = "bold"),            
+      legend.text = element_text(size = 12) ,                            
+      legend.position = "right"
+    ) + 
+    labs(fill = "-log10(pval)")
   print(g1)
   
-  # Plot
+  #Plot
   col_gradient <- scale_fill_gradient2(
     low = scales::muted("red"), mid = "white", high = scales::muted("blue"),
     midpoint = 0, limits = range(fgseaRes$signed_logp)
@@ -106,9 +110,8 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
     labs(x = "NES", y = "Pathways", title = "GSEA") +
     col_gradient +
     theme_minimal() 
-  # 
   
-  #Ruby's portion
+  #Rubrary Plot
   g = Rubrary::plot_GSEA_barplot(
     gsea_res = fgseaRes,
     #gsea_pws = topPathways,
@@ -147,8 +150,6 @@ run_fgsea = function(cluster_id, pathways = NULL, subset = F, deg.df, deg.df_slp
     )
   }
   print(g)
-  #return(g)
-  #return(fgseaRes)
   return(list(df = fgseaRes, plot = g, plot2 = g1))
 }
 
