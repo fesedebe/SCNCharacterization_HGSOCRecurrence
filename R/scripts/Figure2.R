@@ -9,14 +9,41 @@ library(msigdbr)
 library(ComplexHeatmap)
 library(patchwork)
 library(tibble)
+library(data.table)
 
 source("/RFunctions/FGSEA_functions.R")
-source("R/functions/Fig1_functions.R")
+source("R/functions/bulkRNAseq_functions.R")
 
-scn.sig <- read.delim("~/Dropbox/Graeber/OVP/Ovarian Project/signatures/SCN_Signature/SCN_Signature.txt") %>%
+ucp.deseq.recur.allsamps = read.delim(
+  file = "data/OV_UCLA&Patch_recur_prevpost_slogp_DESeq_pconly_S13b.txt",
+  stringsAsFactors = F
+)
+ucla.ov.paired.rc <- read.delim(
+  file = "data/ovarian_ucla1234_rsem_genes_upper_norm_counts_coding_log2_paired_recurrent.txt",
+  stringsAsFactors = F
+)
+scn.sig <- read.delim("data/SCN_Signature.txt") %>%
   arrange(desc(PC1.v)) 
+scn.f1a = read.delim(
+  file = "~/Dropbox/Graeber/OVP/Ovarian Project/log2_coding_expression_datasets/PRAD.norm_Beltran_LUAD.norm_SCLC_LUAD.subset_rsem_genes_upper_norm_counts_coding_log2.txt",
+  stringsAsFactors = F
+)
+human.info.scn.anno <- read.delim(
+  "data/human.info.scn.anno.txt",
+  row.names = 1,
+  stringsAsFactors = F
+)
+ov_anno_rc = read.delim("data/UCLAOvarian_CombinedBatches_Annotation_v13_rcp.txt", stringsAsFactors = F)
+disp_gs_hm = data.table::fread("data/scn_genes_hm20.txt")
+paletteTS = toupper(c(
+  "#f9ceab", 
+  "#f9b3ab", 
+  "#ae7d78", 
+  "#f9abd8", 
+  "#ae7897" 
+))
 #
-#Enrichment of Resistance Signatures in HGSOC Data-----
+#Enrichment of Resistance Signatures in HGSOC Data (2A & S2A)-----
 # geneset prep
 resis.genesets <- list(
   "SCN_Balanis" = head(scn.sig$Gene, 500),
@@ -34,7 +61,7 @@ resis.genesets <- list(
 #debugonce(run_fgsea)
 resis_fgsea_rc = run_fgsea(
   pathways = resis.genesets, 
-  deg.df = fread("data/OV_UCLA&Patch_recur_prevpost_slogp_DESeq_pconly_S13b.txt"), 
+  deg.df = data.table::fread("data/OV_UCLA&Patch_recur_prevpost_slogp_DESeq_pconly_S13b.txt"), 
   deg.df_slpval = "sign_log_p", 
   maxSize = 500, 
   nPermSimple = 10000,
@@ -67,7 +94,7 @@ ggsave(
   height = 5.8
 )
 #
-#boxplots of SCN & RB1 Loss Scores----
+#boxplots of SCN & RB1 Loss Scores (2B-E)----
 #combine UCLA & Patch Annotations
 ovp_anno = rbind(
   ov_anno_rc[,c("Sample","Treatment_Status","Dataset", "SCN_Score", "RB_Loss_Malorni", "RB_Loss_Chen")], #RB1_Loss
@@ -239,7 +266,7 @@ ggsave(
   bp.rpn.rb, device = "png", width = 15, height = 3.5, dpi = 600)
 
 #
-#Patients with all three treatment timepoints-----
+#Patients with all three treatment timepoints (2D)-----
 tt3 <- ov_anno_full %>%
   filter(Cohort %in% c("Post-NACT & Recurrent"), Paired == TRUE) %>%
   select(Sample) %>%
@@ -299,7 +326,39 @@ ggsave(
   height = 5,
   width = 5
 )
-#Heatmap of top 1000 NE Genes - Combine UCLA & SCN data & and anno-----
+#Heatmap of top 1000 SCN Genes - Combine UCLA & SCN data & and anno (2F)-----
+
+#filter to top 1000 SCN genes
+scn.sig.filt = head(scn.sig$Gene, 1000)
+
+#filter scn.f1a data to filtered scn genes & scn samples
+scn.f1a.filt <- scn.f1a[scn.f1a$gene %in% scn.sig.filt,] %>%
+  `row.names<-`(., NULL) %>% 
+  tibble::column_to_rownames(var = "gene") %>%
+  select(all_of(rownames(human.info.scn.anno))) %>%
+  as.matrix()
+
+##ucla
+#filter ov samps to just recurrent
+ov_anno_rc.filt = ov_anno_rc[ov_anno_rc$Treatment_Status %in% "Recurrent",]  %>%
+  left_join(
+    data.table::fread("data/ovarian_ucla12345_HGSOCSubtypes_consensusOV.txt") %>%
+      dplyr::select("V1", "Subtype"), 
+    by = c("Sample_ID" = "V1")
+  ) %>%
+  `row.names<-`(., NULL) %>% 
+  tibble::column_to_rownames(var = "Sample_ID") %>%
+  dplyr::select(Treatment_Status, SCN_Score, RB_Loss_Malorni, Subtype) %>%
+  dplyr::rename(RB1_Loss_Score = RB_Loss_Malorni)
+
+#filter ucla.ov.paired.rc to top & bottom scn genes, and samples in ov_anno_rc.filt
+ucla.ov.paired.rc.filt = ucla.ov.paired.rc[ucla.ov.paired.rc$gene %in% scn.sig.filt,] %>%
+  `row.names<-`(., NULL) %>% 
+  tibble::column_to_rownames(var = "gene") %>%
+  select(all_of(rownames(ov_anno_rc.filt))) %>%
+  as.matrix()
+
+#merging scn & ucla data & anno
 scn.ucla.paired.rc = merge(
   scn.f1a.filt, 
   ucla.ov.paired.rc.filt, 
@@ -342,6 +401,12 @@ treatment_status_legend <- Legend(
   labels_gp = gpar(fontsize = 12)
 )
 
+# Read and filter genes for display on heatmap
+f2hm_dispgs <- disp_gs_hm %>%
+  mutate(mat_index = match(gene, rownames(scn.ucla.paired.rc))) %>%
+  select(mat_index, gene) %>%
+  na.omit()
+
 # Generate heatmap
 scn.ovr.chm = Heatmap(
   matrix = scn.ucla.paired.rc,
@@ -378,6 +443,13 @@ scn.ovr.chm = Heatmap(
   row_title = "Top 1000 SCN Genes",
   column_title = "Patient Samples",
   column_title_side = "bottom",
+  # right_annotation = rowAnnotation(
+  #   foo = anno_mark(
+  #     at = f2hm_dispgs$mat_index, 
+  #     labels = f2hm_dispgs$gene,
+  #     labels_gp = gpar(fontsize = 5)
+  #   )
+  # ),
   heatmap_legend_param = list(
     title = "Gene Expression (log2 UQ)", 
     color_bar = "continuous",
@@ -385,9 +457,10 @@ scn.ovr.chm = Heatmap(
     title_gp = gpar(fontsize = 12, fontface = "bold"),
     labels_gp = gpar(fontsize = 12))
 )
+scn.ovr.chm
 
 pdf(
-  "/Output/top1kscn_lg.pdf",
+  "Output/top1kscn_lg.pdf",
   width = 10, 
   height = 4.5
 )
@@ -400,3 +473,47 @@ draw(
 )
 dev.off()
 #
+#Dotplot - Relevant Genes Connected to SCN-----
+ucp.deseq.recur.allsamps_hmg <- ucp.deseq.recur.allsamps %>%
+  mutate(signed_logpadj = -log10(padj) * sign(log2FoldChange)) %>%
+  mutate(percentile_rank = percent_rank(signed_logpadj)) %>%
+  filter(gene %in% fread("data/hgsoc-scn_hmgenes.txt")$gene)
+
+dot_plot <- ggplot(ucp.deseq.recur.allsamps_hmg, aes(x = gene, y = percentile_rank)) +
+  geom_point(aes(size = abs(log2FoldChange), color = signed_logpadj), alpha = 0.8) +  
+  scale_color_gradientn(
+    #colors = c("#6A0DAD", "#E5E5F7", "#028A0F"),
+    #colors = c("#D4A5A5", "#F7E7CE", "#5B8FA6"),
+    colors = c("#6A0DAD", "#D8BFD8", "#B03A5B"), #8C3D63
+    values = scales::rescale(c(-5, -1.3, 1.3, 5)),
+    limits = c(-5, 5),
+    oob = scales::squish
+    )+
+  scale_size_continuous(range = c(3, 8)) + 
+  theme_minimal() +
+  labs(title = "Expression Change in Recurrent Pairs",
+       x = "SCN Gene",
+       y = "Percentile Rank", #\n(Recurrent vs. Chemonaive)",
+       color = "Significance \n", #(-log10 p-adj)",
+       size = "Log Fold \nChange"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7.5), 
+        axis.text.y = element_text(size = 7.5),
+        plot.title = element_text(size = 10, face = "bold"),
+        legend.direction = "horizontal",
+        legend.title = element_text(size = 9.5),
+        legend.text = element_text(size = 8.5),
+        #legend.position = "bottom",
+        panel.grid = element_blank(),
+        panel.grid.major.x = element_line(color = "lightgray", linewidth = 0.1)
+  ) +
+  scale_y_continuous(limits = c(-0.1, 1.1), breaks = seq(0, 1, by = 0.25)) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "lightgray", linewidth = 0.35) 
+dot_plot
+ggsave(
+  "Output/scn_relevant_genes_dotplot.pdf", 
+  dot_plot, 
+  device = "pdf", 
+  width = 11, 
+  height = 2.7
+)
