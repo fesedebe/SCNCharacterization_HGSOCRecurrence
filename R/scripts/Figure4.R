@@ -6,7 +6,7 @@ library(ggsignif)
 library('GSVA')
 library(readxl)
 
-#SCN Histology Score Violin Plot - Chemonaive, Post-NACT, Recurrent----------------
+#SCN Histology Score Violin Plot - Chemonaive, Post-NACT, Recurrent (S4A)----------------
 hist3b <- data.table::fread("./data/Hist/Fig3B.csv") %>%
   filter(SSN != '.') %>%
   mutate(
@@ -23,7 +23,7 @@ hist3b_vp = ggplot(hist3b, aes(x = Group, y = SSN, fill = Group)) +
   scale_y_continuous(breaks = seq(0, 105, by = 20), limits = c(0, 105)) +  
   theme_classic() +  
   theme(
-    axis.line = element_line(size = 0.5),  
+    axis.line = element_line(linewidth = 0.5),  
     text = element_text(size = 20, face = "bold"), 
     axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)), 
     legend.position = "none",  
@@ -34,25 +34,24 @@ hist3b_vp = ggplot(hist3b, aes(x = Group, y = SSN, fill = Group)) +
   annotate("text", x = 1.5, y = 96, label = "p = 0.018", size = 4) +
   geom_segment(aes(x = 2, xend = 3, y = 95, yend = 95), color = "gray40") + 
   geom_point(x = 2, y = 95, color = "gray40") + geom_point(x = 3, y = 95, color = "gray40") +
-  annotate("text", x = 2.5, y = 98, label = "p <= 0.001", size = 4) +
+  annotate("text", x = 2.5, y = 98, label = "p < 0.001", size = 4) +
   geom_segment(aes(x = 1, xend = 3, y = 102, yend = 102) , color = "gray40") +
   geom_point(x = 1, y = 102, color = "gray40") + geom_point(x = 3, y = 102, color = "gray40") +
-  annotate("text", x = 2, y = 105, label = "p <= 0.021", size = 4)
+  annotate("text", x = 2, y = 105, label = "p = 0.021", size = 4)
 
 hist3b_vp
 ggsave(
-  "output/HIST/scnlikecells_cnpnrc_vp.png", 
+  "Output/scnlikecells_cnpnrc_vp.png", 
   plot = hist3b_vp, 
   height = 5.5, 
   width = 6, 
   dpi = 600
 ) 
 #
-#SCN Histology Score Boxplot - Paired Chemonaive to Recurrent-------
+#SCN Histology Score Boxplot - Paired Chemonaive to Recurrent (4A)-------
 paired_histology <- data.table::fread('./data/Hist/Fig3D.csv') %>%
   mutate(avg_NE = avg_NE*100)
 
-#for sample with 5 recurrent, add 4 chemonaive to make 1 to 1
 rows_cn <- paired_histology %>%
   filter(TreatmentStatus == "Chemonaive") %>%
   select(Patient, TreatmentStatus, Tissue_ID, avg_NE) %>%
@@ -88,21 +87,6 @@ pt_df <- function(pt){
     arrange(pair)
 }
 
-#old plot
-ggplot(
-  paired_histology, aes(x = TreatmentStatus, y = avg_NE)) +
-  geom_boxplot(outlier.shape = NA, aes(fill = TreatmentStatus)) +
-  geom_segment(
-    data = segs_RC,
-    aes(x = TS_CN, xend = TS_X, y = Patho_Avg_CN, yend = Patho_Avg_X),
-    color = "black", alpha = 0.2) +
-  geom_point() +
-  xlab(NULL) +
-  ylab("Average % SCN-like Cells") +
-  scale_fill_manual(values = c('#F9CEAB','#AE7D78'), guide = 'none')+ 
-  scale_y_continuous(breaks = seq(0, 1, by = 0.2),limits = c(0, 1.00)) +
-  theme_classic() 
-
 hist3d_vp = ggplot(paired_histology, aes(x = TreatmentStatus, y = avg_NE)) +
   geom_boxplot(
     outlier.shape = NA, 
@@ -128,20 +112,20 @@ hist3d_vp = ggplot(paired_histology, aes(x = TreatmentStatus, y = avg_NE)) +
     axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
     legend.position = "none",
     plot.title = element_text(hjust = 0.5)
-  ) + # add external p-values (mixed-model Tristan)
+  ) + 
   geom_segment(aes(x = 1, xend = 2, y = 93, yend = 93), color = "gray20", linewidth = 0.25) +
   geom_point(x = 1, y = 93, color = "gray20") + geom_point(x = 2, y = 93, color = "gray20")  + 
   annotate("text", x = 1.5, y = 95, label = "p = 0.047", size = 3.5) #+
 hist3d_vp
 
 ggsave(
-  "/output/HIST/scnlikecells_paired_cnrc_vp_alt.png", 
+  "Output/scnlikecells_paired_cnrc_vp_alt.png", 
   plot = hist3d_vp, 
-  height = 5, #5
-  width = 6.5, #5 
+  height = 5, 
+  width = 5.5,
   dpi = 600
 )
-#Optimal Debulking vs. NACT VP-------
+#Optimal Debulking vs. NACT VP (4D)-------
 
 #change Post-NACT to NACT in Treatment column of treatment1
 treatment1 <- data.table::fread('./data/Hist/fig3F.csv') %>% 
@@ -173,7 +157,7 @@ opt_debulk = ggplot(treatment1, aes(x = Treatment, y = SCN_Score_perc, fill = Tr
   )
 opt_debulk
 ggsave(
-  "output/HIST/opt_debulk_vp.png", 
+  "Output/opt_debulk_vp.png", 
   plot = opt_debulk, 
   height = 5, 
   width = 5.5, 
@@ -181,7 +165,7 @@ ggsave(
 )
 
 #
-#Survival Analyses-----
+#Survival Analyses (4E)-----
 library(survival)
 surv <- data.table::fread("data/Hist/fig3H.csv") %>% 
   mutate(
@@ -237,7 +221,7 @@ p$plot <- p$plot +
   annotate("text", x = 60, y = 1, label = "p = 0.081", size = 3.5)
 p
 ggsave(
-  "/output/HIST/kpm_survcurv.png", 
+  "Output/kpm_survcurv.png", 
   plot = p$plot, 
   height = 5, 
   width = 6.5, 
