@@ -94,7 +94,7 @@ ggsave(
   height = 5.8
 )
 #
-#boxplots of SCN & RB1 Loss Scores (2B-E)----
+#boxplots of SCN & RB1 Loss Scores (2B, C)----
 #combine UCLA & Patch Annotations
 ovp_anno = rbind(
   ov_anno_rc[,c("Sample","Treatment_Status","Dataset", "SCN_Score", "RB_Loss_Malorni", "RB_Loss_Chen")], #RB1_Loss
@@ -266,7 +266,7 @@ ggsave(
   bp.rpn.rb, device = "png", width = 15, height = 3.5, dpi = 600)
 
 #
-#Patients with all three treatment timepoints (2D)-----
+#Patients with all three treatment timepoints (S2D)-----
 tt3 <- ov_anno_full %>%
   filter(Cohort %in% c("Post-NACT & Recurrent"), Paired == TRUE) %>%
   select(Sample) %>%
@@ -326,7 +326,94 @@ ggsave(
   height = 5,
   width = 5
 )
-#Heatmap of top 1000 SCN Genes - Combine UCLA & SCN data & and anno (2F)-----
+#Dotplot - Relevant Genes Connected to SCN (2D)-----
+ucp.deseq.recur.allsamps_hmg <- ucp.deseq.recur.allsamps %>%
+  mutate(signed_logpadj = -log10(padj) * sign(log2FoldChange)) %>%
+  mutate(percentile_rank = percent_rank(signed_logpadj)) %>%
+  filter(gene %in% data.table::fread("data/hgsoc-scn_hmgenes.txt")$gene)
+
+#pos
+ucp.deseq.recur.allsamps_hmgpos <- ucp.deseq.recur.allsamps_hmg %>%
+  filter(log2FoldChange > 0 | gene %in% c("SYP", "FOXA2", "NCAM1"))
+
+dot_plotA <- ggplot(ucp.deseq.recur.allsamps_hmgpos, aes(x = gene, y = percentile_rank)) +
+  geom_point(aes(size = abs(log2FoldChange), color = signed_logpadj), alpha = 0.8) +  
+  scale_color_gradientn(
+    colors = c("#6A0DAD", "#D8BFD8", "#B03A5B"), 
+    values = scales::rescale(c(-5, -1.3, 1.3, 5)),
+    limits = c(-5, 5),
+    oob = scales::squish
+  ) +
+  scale_size_continuous(range = c(3, 8)) + 
+  theme_minimal() +
+  labs(title = "Expression Change in Recurrent Pairs",
+       x = "Up in SCN",
+       y = "Percentile Rank in HGSOC", 
+       color = "Significance \n", 
+       size = "Log Fold \nChange"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7.5), 
+        axis.text.y = element_text(size = 7.5),
+        plot.title = element_text(size = 10, face = "bold"),
+        legend.direction = "horizontal",
+        legend.title = element_text(size = 9.5),
+        legend.text = element_text(size = 8.5),
+        panel.grid = element_blank(),
+        panel.grid.major.x = element_line(color = "lightgray", linewidth = 0.1)
+  ) +
+  scale_y_continuous(limits = c(-0.1, 1.1), breaks = seq(0, 1, by = 0.25)) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "lightgray", linewidth = 0.35) 
+dot_plotA
+
+#neg
+ucp.deseq.recur.allsamps_hmgneg <- ucp.deseq.recur.allsamps_hmg %>%
+  filter(log2FoldChange < 0 & !gene %in% c("SYP", "FOXA2", "NCAM1"))
+dot_plotB <- ggplot(ucp.deseq.recur.allsamps_hmgneg, aes(x = gene, y = percentile_rank)) +
+  geom_point(aes(size = abs(log2FoldChange), color = signed_logpadj), alpha = 0.8) +  
+  scale_color_gradientn(
+    colors = c("#6A0DAD", "#D8BFD8", "#B03A5B"), 
+    values = scales::rescale(c(-5, -1.3, 1.3, 5)),
+    limits = c(-5, 5),
+    oob = scales::squish
+  ) +
+  scale_size_continuous(range = c(3, 8)) + 
+  theme_minimal() +
+  labs(title = " ",
+       x = "Down in SCN",
+       y = "Percentile Rank in HGSOC",
+       color = "Significance \n",
+       size = "Log Fold \nChange"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7.5), 
+        axis.text.y = element_text(size = 7.5),
+        plot.title = element_text(size = 10, face = "bold"),
+        legend.direction = "horizontal",
+        legend.title = element_text(size = 9.5),
+        legend.text = element_text(size = 8.5),
+        panel.grid = element_blank(),
+        panel.grid.major.x = element_line(color = "lightgray", linewidth = 0.1)
+  ) +
+  scale_y_continuous(limits = c(-0.1, 1.1), breaks = seq(0, 1, by = 0.25)) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "lightgray", linewidth = 0.35) 
+dot_plotB
+
+dpab = dot_plotA + dot_plotB + patchwork::plot_layout(
+  axis_titles = 'collect_y',
+  axes = 'collect_y',
+  guides = 'collect', 
+  widths = c(3,1)
+)
+print(dpab)
+
+ggsave(
+  "Output/scn_relevant_genes_dotplot.pdf", 
+  dpab, 
+  device = "pdf", 
+  width = 12, 
+  height = 3
+)
+#
+#Heatmap of top 1000 SCN Genes - Combine UCLA & SCN data & and anno (2E)-----
 
 #filter to top 1000 SCN genes
 scn.sig.filt = head(scn.sig$Gene, 1000)
@@ -443,13 +530,6 @@ scn.ovr.chm = Heatmap(
   row_title = "Top 1000 SCN Genes",
   column_title = "Patient Samples",
   column_title_side = "bottom",
-  # right_annotation = rowAnnotation(
-  #   foo = anno_mark(
-  #     at = f2hm_dispgs$mat_index, 
-  #     labels = f2hm_dispgs$gene,
-  #     labels_gp = gpar(fontsize = 5)
-  #   )
-  # ),
   heatmap_legend_param = list(
     title = "Gene Expression (log2 UQ)", 
     color_bar = "continuous",
@@ -473,47 +553,92 @@ draw(
 )
 dev.off()
 #
-#Dotplot - Relevant Genes Connected to SCN-----
-ucp.deseq.recur.allsamps_hmg <- ucp.deseq.recur.allsamps %>%
-  mutate(signed_logpadj = -log10(padj) * sign(log2FoldChange)) %>%
-  mutate(percentile_rank = percent_rank(signed_logpadj)) %>%
-  filter(gene %in% fread("data/hgsoc-scn_hmgenes.txt")$gene)
-
-dot_plot <- ggplot(ucp.deseq.recur.allsamps_hmg, aes(x = gene, y = percentile_rank)) +
-  geom_point(aes(size = abs(log2FoldChange), color = signed_logpadj), alpha = 0.8) +  
-  scale_color_gradientn(
-    #colors = c("#6A0DAD", "#E5E5F7", "#028A0F"),
-    #colors = c("#D4A5A5", "#F7E7CE", "#5B8FA6"),
-    colors = c("#6A0DAD", "#D8BFD8", "#B03A5B"), #8C3D63
-    values = scales::rescale(c(-5, -1.3, 1.3, 5)),
-    limits = c(-5, 5),
-    oob = scales::squish
-    )+
-  scale_size_continuous(range = c(3, 8)) + 
-  theme_minimal() +
-  labs(title = "Expression Change in Recurrent Pairs",
-       x = "SCN Gene",
-       y = "Percentile Rank", #\n(Recurrent vs. Chemonaive)",
-       color = "Significance \n", #(-log10 p-adj)",
-       size = "Log Fold \nChange"
-  ) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7.5), 
-        axis.text.y = element_text(size = 7.5),
-        plot.title = element_text(size = 10, face = "bold"),
-        legend.direction = "horizontal",
-        legend.title = element_text(size = 9.5),
-        legend.text = element_text(size = 8.5),
-        #legend.position = "bottom",
-        panel.grid = element_blank(),
-        panel.grid.major.x = element_line(color = "lightgray", linewidth = 0.1)
-  ) +
-  scale_y_continuous(limits = c(-0.1, 1.1), breaks = seq(0, 1, by = 0.25)) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "lightgray", linewidth = 0.35) 
-dot_plot
-ggsave(
-  "Output/scn_relevant_genes_dotplot.pdf", 
-  dot_plot, 
-  device = "pdf", 
-  width = 11, 
-  height = 2.7
+#Correlation Matrix Heatmap (Fig S3E)-----
+scn.uc.col2 = list(
+  `Sample Type` = c(
+    "Recurrent" = "#ae7d78", 
+    "SCLC" = "#f9abd8", 
+    "NEPC" = "#8f7dae"), 
+  Subtype = c(
+    "None" = "white",
+    "SCLC-A" = "#D55E00",          # Strong Orange
+    "SCLC-P" = "#E69F00",          # Golden Yellow
+    "SCLC-N" = "#009E73",          # Bluish Green
+    "SCLC-Y" = "#0072B2",          # Sky Blue
+    "Differentiated" = "#000000",  # Yellow
+    "Immunoreactive" = "#000000",  # Blue
+    "Mesenchymal" = "#000000",     # Red-Purple
+    "Proliferative" = "#000000"    # Black
+  ),
+  `SCN Score` =  circlize::colorRamp2(
+    c(min(scn.uc.anno$SCN_Score), max(scn.uc.anno$SCN_Score)), 
+    c("white", "#4d004b")
+  ),
+  `RB1 Loss Score` = circlize::colorRamp2(
+    c(min(scn.uc.anno$RB1_Loss_Score), max(scn.uc.anno$RB1_Loss_Score)), 
+    c("white", "olivedrab")
+  )
 )
+
+scn.ovr.chm_cor = ComplexHeatmap::Heatmap(
+  matrix = cor(scn.ucla.paired.rc),
+  name = "gex",
+  border = T,
+  col = viridis::magma(500)[50:450],
+  top_annotation = HeatmapAnnotation(
+    `Sample Type` = scn.uc.anno$Treatment_Status,
+    Subtype = scn.uc.anno$Subtype,
+    which = "col", 
+    border = T,
+    col = scn.uc.col2,
+    show_annotation_name = T,
+    annotation_legend_param = list(
+      legend_direction = "horizontal",
+      title_gp = gpar(fontsize = 12, fontface = "bold"),
+      labels_gp = gpar(fontsize = 12), nrow = 5
+    )
+  ),
+  right_annotation = rowAnnotation(
+    `Sample Type` = scn.uc.anno$Treatment_Status,
+    Subtype = scn.uc.anno$Subtype,
+    border = T,
+    col = scn.uc.col2,
+    show_annotation_name = F,
+    show_legend = F
+  ),
+  row_names_gp = gpar(fontsize = 5),
+  column_names_gp = gpar(fontsize = 5),
+  show_row_names = F,
+  show_column_names = F,
+  column_names_rot = 45,
+  row_title = "Top 1000 SCN Genes",
+  column_title = "Patient Samples",
+  column_title_side = "bottom",
+  heatmap_legend_param = list(
+    title = "Correlation", 
+    color_bar = "continuous",
+    legend_direction = "horizontal",
+    title_gp = gpar(fontsize = 12, fontface = "bold"),
+    labels_gp = gpar(fontsize = 12))
+)
+scn.ovr.chm_cor
+pdf(
+  "Output/top1kscn_lg_cormat.pdf",
+  width = 8.5, 
+  height = 8.5
+)
+draw(
+  scn.ovr.chm_cor,
+  annotation_legend_list = list(Treatment_Status = Legend(
+    title = "Sample Type",
+    labels = c("Recurrent", "SCLC", "NEPC"),
+    legend_gp = gpar(fill = scn.uc.col$Treatment_Status),
+    title_gp = gpar(fontsize = 12, fontface = "bold"),
+    labels_gp = gpar(fontsize = 12)
+  )),
+  merge_legend = T,
+  heatmap_legend_side = "bottom",
+  annotation_legend_side = "bottom"
+)
+dev.off()
+#
