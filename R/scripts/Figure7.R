@@ -4,7 +4,7 @@ library(ggplot2)
 library(gtable)
 source("R/functions/Fig1_functions.R")
 
-#Tables (7B & H)-----
+#Tables (7A & E)-----
 library(gt)
 
 #short term model
@@ -137,7 +137,7 @@ pdxst_rblm = pdxst.rbl %>%
   merge(PDXB2_anno, by.x = 'Sample_ID', by.y = "ID")
 pdxst_rblm$Stage <- factor(
   pdxst_rblm$Stage,
-  levels = c("Before injection", "Pre-therapy", "1st recurrence", "2nd recurrence",  "Vehicle-treated" ))
+  levels = c("Before injection", "Pre-therapy", "1st recurrence", "2nd recurrence", "Vehicle-treated"))
 pos <- position_jitter(width = 0.25, seed = 13)
 
 #RB Loss violin plot
@@ -145,7 +145,7 @@ st_rb = ggplot(pdxst_rblm, aes(x = Stage, y = RB_Loss_Malorni, fill = Stage)) +
   geom_boxplot(alpha = 0.7, color = "black") +
   geom_jitter(width = 0.1) +
   xlab("Treatment Status") +
-  ylab("Normalized Scores") +
+  ylab("Scores") +
   ggrepel::geom_label_repel(aes(label = Sample_ID), color = "black", position = pos, size = 2) +
   labs(title = "RB Loss", 
        fill = "Treatment Status")   +
@@ -208,25 +208,31 @@ ggsave(
 )
 
 #combine both plots
-st_scnrb = st_scn / st_rb + 
+st_scnrb = st_scn + st_rb + 
   patchwork::plot_layout(
-    ncol = 1,
-    nrow = 2,
+    ncol = 2,
+    nrow = 1,
     guides = 'collect', 
-    axis_titles = 'collect',
-    widths = c(1,2)
-  ) +
-  patchwork::plot_annotation(
-    title = "Short-Term Model",
-    theme = theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
-  )
+    axis_titles = 'collect'#,
+    #widths = c(1,2)
+  ) #+
+  # patchwork::plot_annotation(
+  #   title = "Short-Term Model",
+  #   theme = theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
+  # )
 st_scnrb
 ggsave(
   "Output/PDXB3_ST_SCN_RBL_violin_anovap.png",
   plot = st_scnrb,
-  width = 6.5,
-  height = 9.5,
+  width = 5.5,
+  height = 8.5,
   dpi = 600
+)
+ggsave(
+  "Output/PDXB3_ST_SCN_RBL_violin_anovap.pdf",
+  plot = st_scnrb,
+  height = 3.5,
+  width = 8
 )
 
 #
@@ -245,7 +251,7 @@ lt_scn = ggplot(PDXB3_N_anno, aes(x = Timepoint, y = SCN_Proj, fill = Timepoint)
   geom_violin(alpha = 0.7, color = "black") +
   geom_jitter(width = 0.1) +
   xlab("Treatment Status") +
-  ylab("Normalized Scores") +
+  ylab("Scores") +
   ggrepel::geom_label_repel(aes(label = Sample_ID), color = "black", position = pos, size = 2) +
   labs(title = "SCN",
        fill = "Treatment Status") +
@@ -286,9 +292,9 @@ lt_rb = ggplot(pdxlt.rblf, aes(x = Timepoint, y = RB_Loss_Malorni, fill = Timepo
   geom_violin(alpha = 0.7, color = "black") +
   geom_jitter(width = 0.1) +
   xlab("Treatment Status") +
-  ylab("Normalized Scores") +
+  ylab("Scores") +
   ggrepel::geom_label_repel(aes(label = Sample_ID), color = "black", position = pos, size = 2) +
-  labs(title = "RB Loss", tag = "J",
+  labs(title = "RB Loss", #tag = "J",
        fill = "Treatment Status") +
   theme_classic() +
   theme(
@@ -314,26 +320,25 @@ ggsave(
 )
 
 #combine both plots
-lt_scnrb = lt_scn / lt_rb + 
+lt_scnrb = lt_scn + lt_rb + 
   patchwork::plot_layout(
-    ncol = 1,
-    nrow = 2,
+    ncol = 2,
+    nrow = 1,
     guides = 'collect', 
-    axis_titles = 'collect',
-    widths = c(1,2)
-  ) +
-  patchwork::plot_annotation(
-    title = "Long-Term Model",
-    theme = theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
-  )
+    axis_titles = 'collect',#
+    #widths = c(1,2)
+  ) #+
+  # patchwork::plot_annotation(
+  #   title = "Long-Term Model",
+  #   theme = theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
+  # )
 lt_scnrb
 
 ggsave(
-  "Output/PDXB3_LT_SCN_RBL_violin.png",
+  "Output/PDXB3_LT_SCN_RBL_violin.pdf",
   plot = lt_scnrb,
-  width = 6,
-  height = 9,
-  dpi = 600
+  height = 3.5,
+  width = 8
 )
 #
 #Volcano Plots (7E & K)----
@@ -347,18 +352,17 @@ st_vc = prep_volcano_plot_data(
   create_volcano_plot(
     prepped_deseq_data = .[["deseq_data"]],
     top_genes_vp = .[["top_genes_vp"]],
-    color_palette = c("Upregulated" = "#50C878", "Downregulated" = "#673AB7", "No Change" = "#b0b0b0"),
+    color_palette = c("Up" = scales::muted("#50C878"), "Down" = scales::muted("#673AB7"), "No Change" = "#b0b0b0"),
+    point_size = 1,
     save = F
   ) +
-  labs(tag = "E") + 
   theme(plot.tag = element_text(size = 20, face = "bold", family = "Arial"))
 
 ggsave(
-  "Output/PDXB2_ST_deseq_volc.png",
+  "Output/PDXB2_ST_deseq_volc.pdf",
   plot = st_vc,
-  width = 5,
-  height = 6,
-  dpi = 600
+  width = 3.5,
+  height = 5
 )
 
 #long term model
@@ -372,36 +376,17 @@ lt_vc = prep_volcano_plot_data(
     color_palette = c("Upregulated" = "#50C878", "Downregulated" = "#673AB7", "No Change" = "#b0b0b0"),
     save = F
   ) +
-  labs(tag = "K") + 
   theme(plot.tag = element_text(size = 20, face = "bold", family = "Arial")) 
 
 ggsave(
-  "Output/PDXB3_LT_deseq_volc.png",
+  "Output/PDXB3_LT_deseq_volc.pdf",
   plot = lt_vc,
-  width = 5,
-  height = 6,
-  dpi = 600
+  width = 3.5,
+  height = 5,
 )
-
-#SHORT TERM MODEL
-lt_vc = data.table::fread("~/Library/CloudStorage/Box-Box/OVProject/NE_Features_in_HGSOC_Manuscript/Manuscript/Data/DEGenes&Pathways_FullFiles/PDXSamples_BulkRNASeq/Batch3/txt_files/PDXB3N_DESeq_PreRecur_results_pcgenes.txt")
-debugonce(prep_volcano_plot_data)
-lt_vc_ls = prep_volcano_plot_data(
-  deseq_data = lt_vc,
-  save_files = F
-)
-
-debugonce(create_volcano_plot)
-create_volcano_plot(
-  prepped_deseq_data = lt_vc_ls[["deseq_data"]],
-  top_genes_vp = lt_vc_ls[["top_genes_vp"]],
-  color_palette = c("Upregulated" = "#50C878", "Downregulated" = "#673AB7", "No Change" = "#b0b0b0"),
-  save = F
-)
-
 #
 #GSEA-Squared Density (7K)------
-categories = c("Immune Response", "Cell Differentiation", "Lipid Metabolism", "Epigenetic Regulation", "Cell Cycle Regulation", "DNA Damage Repair", "RB-E2F Dysregulation"),
+categories = c("Immune Response", "Cell Differentiation", "Lipid Metabolism", "Epigenetic Regulation", "Cell Cycle Regulation", "DNA Damage Repair", "RB-E2F Dysregulation")
 cat_terms = c("INFLAM|IMMUN|INTERLUEKIN|LEUKOCYTE|TNF|MHC|CYTOKINE_|CHEMOKINE|ANTIGEN|LYMPH",
               "DIFFERENTIATION",
               "_COA_|LIPID|STEROL|FATTY|FAT",
@@ -420,7 +405,7 @@ gseasq.lt = Rubrary::run_GSEA_squared(
 )
 
 gseasq.st = Rubrary::run_GSEA_squared(
-  df_GSEA = "dataGSEA_PDXB3N_PrePost_slogp_PC.txt",
+  df_GSEA = "data/GSEA_PDXB3N_PrePost_slogp_PC.txt",
   categories = categories,
   cat_terms = cat_terms,,
   savename = "data/GSEA_PDXB3N_PrePost_slogp_PC",
@@ -442,8 +427,8 @@ Rubrary::plot_GSEAsq_density(
   cat_order = rev(categories),
   title = " ",
   colors = unname(ts_cols[c(3, 2)]),
-  savename = "Output/PDX_ST_LT_GSEAsq_dens.png",
-  plot_fmt = "png",
+  savename = "Output/PDX_ST_LT_GSEAsq_dens.pdf",
+  plot_fmt = "pdf",
   height = 5, width = 5
 )
 
