@@ -780,8 +780,8 @@ prep_volcano_plot_data <- function(deseq_data, lfc = 1, pval = 0.01, pval_column
   deseq_data <- deseq_data %>%
     filter(!is.na(padj)) %>%
     mutate(color = case_when(
-      ((log2FoldChange >= lfc) & (get(pval_column) <= pval & sign(log2FoldChange) > 0)) ~ "Upregulated",
-      ((log2FoldChange <= -lfc) & (get(pval_column) <= pval & sign(log2FoldChange) < 0)) ~ "Downregulated",
+      ((log2FoldChange >= lfc) & (get(pval_column) <= pval & sign(log2FoldChange) > 0)) ~ "Up",
+      ((log2FoldChange <= -lfc) & (get(pval_column) <= pval & sign(log2FoldChange) < 0)) ~ "Down",
       TRUE ~ "No Change"
     ))
   
