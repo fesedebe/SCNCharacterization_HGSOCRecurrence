@@ -804,7 +804,7 @@ prep_volcano_plot_data <- function(deseq_data, lfc = 1, pval = 0.01, pval_column
   if (pca) {
     top_genes <- top_genes %>% arrange(desc(abs(PC1)))
   } else {
-    top_genes <- top_genes %>% arrange(desc(abs(rank_column)))
+    top_genes <- top_genes %>% arrange(desc(abs(get(rank_column))))
   }
   
   # Select top genes shown on volcano plot
